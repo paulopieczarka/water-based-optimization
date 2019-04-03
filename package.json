@@ -6,6 +6,8 @@
   "author": "Paulo Pieczarka <paulopieczarka@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "gaussian": "^1.1.0",
+    "ml-random-forest": "^1.0.3",
     "node-svm": "^2.1.9"
   }
 }
