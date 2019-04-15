@@ -3,11 +3,15 @@
 #include <iostream>
 #include <time.h>
 #include "Wave.hpp"
-#include "FitnessFunction.hpp"
+#include "Function.hpp"
+#include "Random.hpp"
+
+#define ALPHA = 1.01;
+#define BETA = 0.01;
 
 class WaterWaveOptimization {
   public:
-    WaterWaveOptimization(const int H_MAX, FitnessFunction *fitnessFunction);
+    WaterWaveOptimization(const int H_MAX, Function *function);
     ~WaterWaveOptimization();
 
     void generatePopulation();
@@ -23,6 +27,8 @@ class WaterWaveOptimization {
     int features;
     int population;
 
+    Wave *bestWave;
+
     Wave *waves;
-    FitnessFunction *fitnessFunction;
+    Function *function;
 };

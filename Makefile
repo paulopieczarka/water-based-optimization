@@ -4,5 +4,5 @@ SOURCES := $(wildcard $(SOURCES_DIR)/*.cpp)
 
 all:
 	@clear
-	@g++ -g $(SOURCES) -o ./wwo
+	@g++ -g -std=c++11 $(SOURCES) -o ./wwo
 	@./wwo
