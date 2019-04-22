@@ -8,8 +8,8 @@
 
 class Wave {
   public:
-    float lenght;
-    float fitness;
+    double lenght;
+    double fitness;
 
     int size;
     int height;
@@ -17,6 +17,7 @@ class Wave {
     double *values;
 
     Wave(const int H_MAX, int size, Function *function);
+    Wave(const Wave &wave);
     ~Wave();
 
     void print();

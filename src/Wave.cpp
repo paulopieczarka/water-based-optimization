@@ -13,6 +13,12 @@ Wave::Wave (const int H_MAX, int size, Function *function) :
   }
 }
 
+Wave::Wave (const Wave &wave) :
+  fitness(wave.fitness), function(wave.function), height(wave.height), lenght(wave.lenght), size(wave.size) {
+  this->values = (double*)(malloc(size * sizeof(double)));
+  std::copy(wave.values, wave.values + wave.size, this->values);
+}
+
 Wave::~Wave () {
 
 }

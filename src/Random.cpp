@@ -9,7 +9,7 @@ double Random::BetweenDouble (double min, double max) {
 }
 
 double Random::GaussianDouble (double mean, double deviation) {
-  std::default_random_engine generator(time(NULL));
+  std::default_random_engine generator;
   std::normal_distribution<double> distribution(mean, deviation);
   return distribution(generator);
 }
