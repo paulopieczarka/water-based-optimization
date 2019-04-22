@@ -8,10 +8,10 @@
 int main () {
   std::cout << "Water Wave Optimization!" << std::endl;
 
-  // SphereFunction f = SphereFunction();
-  AckleyFunction f = AckleyFunction();
+  SphereFunction f = SphereFunction();
+  // AckleyFunction f = AckleyFunction();
   WaterWaveOptimization wwo = WaterWaveOptimization(H_MAX, &f);
-  wwo.run(1000000);
+  wwo.run(10000);
 
   return 0;
 }

@@ -4,13 +4,13 @@ WaterWaveOptimization::WaterWaveOptimization (const int H_MAX, Function *functio
   H_MAX(H_MAX),
   K_MIN(12),
   ALPHA(1.01),
-  BETA(0.001),
+  BETA(0.01),
   population(5),
   dimensions(2),
   function(function),
   bestWave(NULL)
 {
-  srand(time(NULL));
+  srand(1);
   this->waves = (Wave*)(malloc(this->population * sizeof(Wave)));
   this->generatePopulation();
   this->maxBreakingDirections = std::min(K_MIN, this->dimensions / 2);
@@ -25,7 +25,7 @@ void WaterWaveOptimization::run (int maxIterations) {
 
   int i = 0;
   for (; i < this->population; i++) {
-    if(this->bestWave == NULL || this->waves[i].fitness < this->bestWave->fitness) {
+    if(this->bestWave == NULL || this->waves[i].fitness > this->bestWave->fitness) {
       this->bestWave = this->waves + i;
     }
   }
@@ -76,8 +76,8 @@ void WaterWaveOptimization::propagate (Wave *wave) {
 
   newWave.fitness = function->calcFitness(newWave.values, wave->size);
 
-  if (newWave.fitness < wave->fitness) {
-    if (newWave.fitness < bestWave->fitness) {
+  if (newWave.fitness > wave->fitness) {
+    if (newWave.fitness > bestWave->fitness) {
       this->breakWave(&newWave, wave);
       *bestWave = Wave(newWave);
     }
@@ -112,7 +112,7 @@ void WaterWaveOptimization::refract (Wave *newWave, Wave *wave) {
   // std::cout << "\n\n" << newWave->fitness << " -> ";
   newWave->fitness = function->calcFitness(newWave->values, wave->size);
   // std::cout << newWave->fitness << "\n\n" << std::endl;
-  newWave->lenght = wave->lenght * (wave->fitness / newWave->fitness);
+  newWave->lenght = wave->lenght * (std::abs(wave->fitness) / std::abs(newWave->fitness));
 }
 
 void WaterWaveOptimization::breakWave (Wave *newWave, Wave *wave) {
@@ -129,7 +129,7 @@ void WaterWaveOptimization::breakWave (Wave *newWave, Wave *wave) {
     }
 
     solitaryWave.fitness = function->calcFitness(solitaryWave.values, solitaryWave.size);
-    if (solitaryWave.fitness < currentBestWave.fitness) {
+    if (solitaryWave.fitness > currentBestWave.fitness) {
       currentBestWave = Wave(solitaryWave);
     }
   }
@@ -138,23 +138,22 @@ void WaterWaveOptimization::breakWave (Wave *newWave, Wave *wave) {
 }
 
 void WaterWaveOptimization::updateWavelengths () {
-  int i = 0;
   Wave *wave;
-  double minFitness = std::numeric_limits<double>::max();
+  double minFitness = this->waves[0].fitness;
 
+  int i = 1;
   for (; i < this->population; i++) {
     wave = this->waves + i;
-    if (wave->fitness > minFitness) {
+    if (wave->fitness < minFitness) {
       minFitness = wave->fitness;
     }
   }
 
-
   for (i = 0; i < this->population; i++) {
     wave = this->waves + i;
     double expo =
-      (wave->fitness - minFitness + std::numeric_limits<double>::epsilon()) /
-      (bestWave->fitness - minFitness + std::numeric_limits<double>::epsilon())
+      (std::abs(wave->fitness) - std::abs(minFitness) + std::numeric_limits<double>::epsilon()) /
+      (std::abs(bestWave->fitness) - std::abs(minFitness) + std::numeric_limits<double>::epsilon())
     ;
     wave->lenght = wave->lenght * pow(this->ALPHA, expo * (-1));
   }

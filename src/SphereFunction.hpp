@@ -12,7 +12,7 @@ class SphereFunction : public Function {
         sum += pow(arr[i], 2);
       }
 
-      return sum;
+      return this->globalMinima() - sum;
     }
 
     std::tuple<double, double> domain () {

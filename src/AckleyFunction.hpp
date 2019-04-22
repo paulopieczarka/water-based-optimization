@@ -20,7 +20,7 @@ class AckleyFunction : public Function {
         sum2 += std::cos(2 * M_PI * arr[i]);
       }
 
-      return 20 + exp(1) - (20 * exp(-0.2 * sqrt(ninverse * sum1))) - exp(ninverse * sum2);
+      return this->globalMinima() - (20 + exp(1) - (20 * exp(-0.2 * sqrt(ninverse * sum1))) - exp(ninverse * sum2));
     }
 
     std::tuple<double, double> domain () {
