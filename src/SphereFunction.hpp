@@ -24,6 +24,7 @@ class SphereFunction : public Function {
     }
 
     bool isStopCriterionSatisfied (double fitness) {
-      return fitness == this->globalMinima();
+      // return fitness == this->globalMinima();
+      return this->doubleEquals(this->globalMinima(), fitness, 0.000000001);
     }
 };

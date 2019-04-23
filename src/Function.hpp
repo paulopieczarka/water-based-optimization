@@ -15,4 +15,8 @@ class Function {
     virtual std::tuple<double, double> domain () = 0;
     virtual double globalMinima () = 0;
     virtual bool isStopCriterionSatisfied (double fitness) = 0;
+
+    bool doubleEquals(double left, double right, double epsilon) {
+      return (fabs(left - right) < epsilon);
+    }
 };
