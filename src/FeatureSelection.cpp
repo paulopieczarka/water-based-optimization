@@ -10,212 +10,56 @@ int main()
   DataSet dataset = DataSet("../datasets/plat-sizes-small.data");
   dataset.read();
 
-  if (true) {
-    return 0;
-  }
+  std::cout << "-> [1] Opening dataset..";
 
-  // 2 row and 1 column --> dynamic::matrix.set_size()
-  typedef matrix<double, 2, 1> sample_type;
-  typedef radial_basis_kernel<sample_type> kernel_type;
+  typedef matrix<double, 64, 1> sampleType;
+  typedef radial_basis_kernel<sampleType> kernelType;
 
-  // Now we make objects to contain our samples and their respective labels.
-  std::vector<sample_type> samples;
+  std::vector<sampleType> samples;
   std::vector<double> labels;
 
-  // Now let's put some data into our samples and labels objects.
-  for (int r = -20; r <= 20; ++r)
-  {
-    for (int c = -20; c <= 20; ++c)
-    {
-      sample_type samp;
-      samp(0) = r;
-      samp(1) = c;
-      samples.push_back(samp);
-
-      // if this point is less than 10 from the origin
-      if (sqrt((double)r * r + c * c) <= 10)
-        labels.push_back(+1);
-      else
-        labels.push_back(-1);
+  for (int i=0; i < dataset.instances(); i++) {
+    sampleType sample;
+    for (int j=0; j < dataset.features(); j++) {
+      if (j == dataset.features() - 1) {
+        labels.push_back(dataset.itemAsDouble(i, j));
+      } else {
+        sample(j) = dataset.itemAsDouble(i, j);
+      }
     }
+
+    samples.push_back(sample);
   }
 
-  // Here we normalize all the samples by subtracting their mean and dividing
-  // by their standard deviation.  This is generally a good idea since it
-  // often heads off numerical stability problems and also prevents one large
-  // feature from smothering others.  Doing this doesn't matter much in this
-  // example so I'm just doing this here so you can see an easy way to
-  // accomplish it.
-  vector_normalizer<sample_type> normalizer;
-  // Let the normalizer learn the mean and standard deviation of the samples.
-  normalizer.train(samples);
-  // now normalize each sample
-  for (unsigned long i = 0; i < samples.size(); ++i)
-    samples[i] = normalizer(samples[i]);
+  std::cout << " (samples=" << samples.size() << ")";
+  std::cout << " Done!" << std::endl << "-> [2] Normalizing dataset..";
 
-  // Now that we have some data we want to train on it.  However, there are
-  // two parameters to the training.  These are the C and gamma parameters.
-  // Our choice for these parameters will influence how good the resulting
-  // decision function is.  To test how good a particular choice of these
-  // parameters are we can use the cross_validate_trainer() function to perform
-  // n-fold cross validation on our training data.  However, there is a
-  // problem with the way we have sampled our distribution above.  The problem
-  // is that there is a definite ordering to the samples.  That is, the first
-  // half of the samples look like they are from a different distribution than
-  // the second half.  This would screw up the cross validation process but we
-  // can fix it by randomizing the order of the samples with the following
-  // function call.
+  vector_normalizer<sampleType> normalizer;
+  normalizer.train(samples);
+
+  for (unsigned long i = 0; i < samples.size(); ++i) {
+    samples[i] = normalizer(samples[i]);
+  }
+
+  std::cout << " Done!" << std::endl << "-> [3] Randomizing samples..";
+
   randomize_samples(samples, labels);
 
-  // here we make an instance of the svm_c_trainer object that uses our kernel
-  // type.
-  svm_c_trainer<kernel_type> trainer;
+  std::cout << " Done!" << std::endl << "-> [4] Training model..";
 
-  // Now we loop over some different C and gamma values to see how good they
-  // are.  Note that this is a very simple way to try out a few possible
-  // parameter choices.  You should look at the model_selection_ex.cpp program
-  // for examples of more sophisticated strategies for determining good
-  // parameter choices.
-  cout << "doing cross validation" << endl;
-  for (double gamma = 0.00001; gamma <= 1; gamma *= 5)
-  {
-    for (double C = 1; C < 100000; C *= 5)
-    {
-      // tell the trainer the parameters we want to use
-      trainer.set_kernel(kernel_type(gamma));
-      trainer.set_c(C);
+  svr_trainer<kernelType> trainer;
+  trainer.set_kernel(kernelType(0.1));
+  trainer.set_epsilon_insensitivity(0.001);
+  trainer.set_c(10);
 
-      cout << "gamma: " << gamma << "    C: " << C;
-      // Print out the cross validation accuracy for 3-fold cross validation using
-      // the current gamma and C.  cross_validate_trainer() returns a row vector.
-      // The first element of the vector is the fraction of +1 training examples
-      // correctly classified and the second number is the fraction of -1 training
-      // examples correctly classified.
-      cout << "     cross validation accuracy: "
-           << cross_validate_trainer(trainer, samples, labels, 3);
-    }
-  }
+  decision_function<kernelType> df = trainer.train(samples, labels);
 
-  // From looking at the output of the above loop it turns out that good
-  // values for C and gamma for this problem are 5 and 0.15625 respectively.
-  // So that is what we will use.
+  std::cout << " Done!" << std::endl << "-> [5] Validating model: ";
 
-  // Now we train on the full set of data and obtain the resulting decision
-  // function.  The decision function will return values >= 0 for samples it
-  // predicts are in the +1 class and numbers < 0 for samples it predicts to
-  // be in the -1 class.
-  trainer.set_kernel(kernel_type(0.15625));
-  trainer.set_c(5);
-  typedef decision_function<kernel_type> dec_funct_type;
-  typedef normalized_function<dec_funct_type> funct_type;
+  randomize_samples(samples, labels);
+  matrix<double, 1, 4> results = cross_validate_regression_trainer(trainer, samples, labels, 5);
 
-  // Here we are making an instance of the normalized_function object.  This
-  // object provides a convenient way to store the vector normalization
-  // information along with the decision function we are going to learn.
-  funct_type learned_function;
-  learned_function.normalizer = normalizer;                   // save normalization information
-  learned_function.function = trainer.train(samples, labels); // perform the actual SVM training and save the results
+  std::cout << "Correlation: "<< results(0) << std::endl;
 
-  // print out the number of support vectors in the resulting decision function
-  cout << "\nnumber of support vectors in our learned_function is "
-       << learned_function.function.basis_vectors.size() << endl;
-
-  // Now let's try this decision_function on some samples we haven't seen before.
-  sample_type sample;
-
-  sample(0) = 3.123;
-  sample(1) = 2;
-  cout << "This is a +1 class example, the classifier output is " << learned_function(sample) << endl;
-
-  sample(0) = 3.123;
-  sample(1) = 9.3545;
-  cout << "This is a +1 class example, the classifier output is " << learned_function(sample) << endl;
-
-  sample(0) = 13.123;
-  sample(1) = 9.3545;
-  cout << "This is a -1 class example, the classifier output is " << learned_function(sample) << endl;
-
-  sample(0) = 13.123;
-  sample(1) = 0;
-  cout << "This is a -1 class example, the classifier output is " << learned_function(sample) << endl;
-
-  // We can also train a decision function that reports a well conditioned
-  // probability instead of just a number > 0 for the +1 class and < 0 for the
-  // -1 class.  An example of doing that follows:
-  typedef probabilistic_decision_function<kernel_type> probabilistic_funct_type;
-  typedef normalized_function<probabilistic_funct_type> pfunct_type;
-
-  pfunct_type learned_pfunct;
-  learned_pfunct.normalizer = normalizer;
-  learned_pfunct.function = train_probabilistic_decision_function(trainer, samples, labels, 3);
-  // Now we have a function that returns the probability that a given sample is of the +1 class.
-
-  // print out the number of support vectors in the resulting decision function.
-  // (it should be the same as in the one above)
-  cout << "\nnumber of support vectors in our learned_pfunct is "
-       << learned_pfunct.function.decision_funct.basis_vectors.size() << endl;
-
-  sample(0) = 3.123;
-  sample(1) = 2;
-  cout << "This +1 class example should have high probability.  Its probability is: "
-       << learned_pfunct(sample) << endl;
-
-  sample(0) = 3.123;
-  sample(1) = 9.3545;
-  cout << "This +1 class example should have high probability.  Its probability is: "
-       << learned_pfunct(sample) << endl;
-
-  sample(0) = 13.123;
-  sample(1) = 9.3545;
-  cout << "This -1 class example should have low probability.  Its probability is: "
-       << learned_pfunct(sample) << endl;
-
-  sample(0) = 13.123;
-  sample(1) = 0;
-  cout << "This -1 class example should have low probability.  Its probability is: "
-       << learned_pfunct(sample) << endl;
-
-  // Another thing that is worth knowing is that just about everything in dlib
-  // is serializable.  So for example, you can save the learned_pfunct object
-  // to disk and recall it later like so:
-  serialize("saved_function.dat") << learned_pfunct;
-
-  // Now let's open that file back up and load the function object it contains.
-  deserialize("saved_function.dat") >> learned_pfunct;
-
-  // Note that there is also an example program that comes with dlib called
-  // the file_to_code_ex.cpp example.  It is a simple program that takes a
-  // file and outputs a piece of C++ code that is able to fully reproduce the
-  // file's contents in the form of a std::string object.  So you can use that
-  // along with the std::istringstream to save learned decision functions
-  // inside your actual C++ code files if you want.
-
-  // Lastly, note that the decision functions we trained above involved well
-  // over 200 basis vectors.  Support vector machines in general tend to find
-  // decision functions that involve a lot of basis vectors.  This is
-  // significant because the more basis vectors in a decision function, the
-  // longer it takes to classify new examples.  So dlib provides the ability
-  // to find an approximation to the normal output of a trainer using fewer
-  // basis vectors.
-
-  // Here we determine the cross validation accuracy when we approximate the
-  // output using only 10 basis vectors.  To do this we use the reduced2()
-  // function.  It takes a trainer object and the number of basis vectors to
-  // use and returns a new trainer object that applies the necessary post
-  // processing during the creation of decision function objects.
-  cout << "\ncross validation accuracy with only 10 support vectors: "
-       << cross_validate_trainer(reduced2(trainer, 10), samples, labels, 3);
-
-  // Let's print out the original cross validation score too for comparison.
-  cout << "cross validation accuracy with all the original support vectors: "
-       << cross_validate_trainer(trainer, samples, labels, 3);
-
-  // When you run this program you should see that, for this problem, you can
-  // reduce the number of basis vectors down to 10 without hurting the cross
-  // validation accuracy.
-
-  // To get the reduced decision function out we would just do this:
-  learned_function.function = reduced2(trainer, 10).train(samples, labels);
-  // And similarly for the probabilistic_decision_function:
-  learned_pfunct.function = train_probabilistic_decision_function(reduced2(trainer, 10), samples, labels, 3);
+  std::cout << "-> End!" << std::endl;
 }

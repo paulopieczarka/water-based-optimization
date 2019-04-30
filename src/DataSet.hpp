@@ -17,8 +17,12 @@ class DataSet {
 
     bool read();
 
-    std::string getData(int row, int col);
-    std::vector<std::string> getLine(int row);
+    int instances();
+    int features();
+
+    std::string item(int row, int col);
+    double itemAsDouble(int row, int col);
+    std::vector<std::string> rows(int row);
 
     // TODO: implement drop rows
     // TODO: implement drop cols

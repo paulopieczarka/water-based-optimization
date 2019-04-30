@@ -31,8 +31,8 @@ bool DataSet::read () {
       this->data.push_back(this->split(line, this->delimiter));
     }
 
-    std::cout << "-> Loaded " << this->data.size() << " instances with ";
-    std::cout << this->data[0].size() << " features." << std::endl;
+    std::cout << "-> Loaded " << this->instances() << " instances with ";
+    std::cout << this->features() << " features." << std::endl;
     return true;
   }
 
@@ -40,22 +40,34 @@ bool DataSet::read () {
   return false;
 }
 
-std::vector<std::string> DataSet::getLine (int row) {
-  std::vector<std::string> cols;
-  return cols;
+int DataSet::instances () {
+  return this->data.size();
 }
 
-std::string DataSet::getData (int row, int col) {
-  return "empty.";
+int DataSet::features () {
+  return this->data[0].size();
 }
 
-std::vector<std::string> DataSet::split(const std::string& s, char delimiter) {
+std::vector<std::string> DataSet::rows (int row) {
+  return this->data[row];
+}
+
+std::string DataSet::item (int row, int col) {
+  return this->data[row][col];
+}
+
+double DataSet::itemAsDouble (int row, int col) {
+  return std::stod(this->item(row, col));
+}
+
+std::vector<std::string> DataSet::split (const std::string& s, char delimiter) {
    std::vector<std::string> tokens;
-   std::string token;
    std::istringstream tokenStream(s);
-   while (std::getline(tokenStream, token, delimiter))
-   {
+
+   std::string token;
+   while (std::getline(tokenStream, token, delimiter)) {
       tokens.push_back(token);
    }
+
    return tokens;
 }
