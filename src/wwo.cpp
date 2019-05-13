@@ -1,7 +1,6 @@
-#include <iostream>
-#include <random>
+#include "wwo.hpp"
 
-double* n_array (int d, int x) {
+double* WWO::n_array (int d, int x) {
   double *arr = new double[d];
   for (int i=0; i < d; i++) {
     arr[i] = x;
@@ -10,7 +9,7 @@ double* n_array (int d, int x) {
   return arr;
 }
 
-double** n_matrix (int m, int n, double x) {
+double** WWO::n_matrix (int m, int n, double x) {
   double **mat = new double*[m];
   for (int i=0; i < m; i++) {
     mat[i] = new double[n];
@@ -22,61 +21,11 @@ double** n_matrix (int m, int n, double x) {
   return mat;
 }
 
-double nrand () {
+double WWO::nrand () {
   return ((double) std::rand() / __INT_MAX__);
 }
 
-double sphere_func (double arr[], int length) {
-  double sum = 0;
-  for (int i = 0; i < length; i++) {
-    sum += std::pow(arr[i], 2);
-  }
-
-  return sum;
-}
-
-double ackley_func (double arr[], int length) {
-  double n = length;
-  double ninverse = 1 / n;
-
-  double sum1 = 0;
-  for (int i = 0; i < length; i++) {
-    sum1 += std::pow(arr[i], 2);
-  }
-
-  double sum2 = 0;
-  for (int i = 0; i < length; i++) {
-    sum2 += std::cos(2 * M_PI * arr[i]);
-  }
-
-  return 20 + std::exp(1) - (20 * std::exp(-0.2 * std::sqrt(ninverse * sum1))) - std::exp(ninverse * sum2);
-}
-
-double griewank_func (double arr[], int length) {
-  double sum = 0;
-  double prod = 1;
-
-  for (int i=0; i < length; i++) {
-    sum += std::pow(arr[i], 2) / 4000;
-    prod *= std::cos(arr[i] / std::sqrt(i+1));
-  }
-
-  return sum - prod + 1;
-}
-
-double feature_selection_func (double arr[], int length) {
-  double sum = 0;
-  double prod = 1;
-
-  for (int i=0; i < length; i++) {
-    sum += std::pow(arr[i], 2) / 4000;
-    prod *= std::cos(arr[i] / std::sqrt(i+1));
-  }
-
-  return sum - prod + 1;
-}
-
-double** init (int size, int dimension, double *lowers, double *uppers, double (*func)(double[], int)) {
+double** WWO::init (int size, int dimension, double *lowers, double *uppers, double (*func)(double[], int)) {
   const int hMax = 12;
   double lambda = 0.5;
 
@@ -96,7 +45,7 @@ double** init (int size, int dimension, double *lowers, double *uppers, double (
 }
 
 // Get the indicies of best and worst solutions of the population
-int* minIndexMaxIndex (double **x, int size, int dimension) {
+int* WWO::minIndexMaxIndex (double **x, int size, int dimension) {
   int minIndex = 0;
   int maxIndex = 0;
 
@@ -116,7 +65,7 @@ int* minIndexMaxIndex (double **x, int size, int dimension) {
   return new int[2]{minIndex, maxIndex};
 }
 
-int* randperm (int n, int k) {
+int* WWO::randperm (int n, int k) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_real_distribution<> rand(1, k);
@@ -129,14 +78,14 @@ int* randperm (int n, int k) {
   return result;
 }
 
-double normrnd (double mu, double sigma) {
+double WWO::normrnd (double mu, double sigma) {
   std::default_random_engine generator;
   std::normal_distribution<double> distribution(mu, sigma);
 
   return distribution(generator);
 }
 
-void wwo (int size, int dimension, double (*func)(double[], int), double lower, double upper) {
+void WWO::exec (int size, int dimension, double (*func)(double[], int), double lower, double upper) {
   // std::cout << "-> start" << std::endl;
 
   // lower bounds
@@ -289,20 +238,4 @@ void wwo (int size, int dimension, double (*func)(double[], int), double lower, 
   std::cout << "]" << std::endl;
   std::cout << "-> optValue = " << optValue << std::endl;
   std::cout << std::endl;
-}
-
-int main () {
-  std::cout << "-> start: Sphere" << std::endl;
-  wwo(5, 10, sphere_func, -32, 32);
-
-  std::cout << "-> start: Ackley" << std::endl;
-  wwo(5, 10, ackley_func, -32, 32);
-
-  std::cout << "-> start: Griewank" << std::endl;
-  wwo(5, 10, griewank_func, -100, 100);
-
-  // std::cout << "-> start: Feature Selection" << std::endl;
-  // wwo(5, 10, sphere_func, 0, 1);
-
-  return 0;
 }
