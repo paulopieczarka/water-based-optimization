@@ -35,7 +35,48 @@ double sphere_func (double arr[], int length) {
   return sum;
 }
 
-double** init (int size, int dimension, double *lowers, double *uppers) {
+double ackley_func (double arr[], int length) {
+  double n = length;
+  double ninverse = 1 / n;
+
+  double sum1 = 0;
+  for (int i = 0; i < length; i++) {
+    sum1 += std::pow(arr[i], 2);
+  }
+
+  double sum2 = 0;
+  for (int i = 0; i < length; i++) {
+    sum2 += std::cos(2 * M_PI * arr[i]);
+  }
+
+  return 20 + std::exp(1) - (20 * std::exp(-0.2 * std::sqrt(ninverse * sum1))) - std::exp(ninverse * sum2);
+}
+
+double griewank_func (double arr[], int length) {
+  double sum = 0;
+  double prod = 1;
+
+  for (int i=0; i < length; i++) {
+    sum += std::pow(arr[i], 2) / 4000;
+    prod *= std::cos(arr[i] / std::sqrt(i+1));
+  }
+
+  return sum - prod + 1;
+}
+
+double feature_selection_func (double arr[], int length) {
+  double sum = 0;
+  double prod = 1;
+
+  for (int i=0; i < length; i++) {
+    sum += std::pow(arr[i], 2) / 4000;
+    prod *= std::cos(arr[i] / std::sqrt(i+1));
+  }
+
+  return sum - prod + 1;
+}
+
+double** init (int size, int dimension, double *lowers, double *uppers, double (*func)(double[], int)) {
   const int hMax = 12;
   double lambda = 0.5;
 
@@ -46,7 +87,7 @@ double** init (int size, int dimension, double *lowers, double *uppers) {
       x[i][j] = lowers[j] + nrand() * (uppers[j] - lowers[j]);
     }
 
-    x[i][dimension] = sphere_func(x[i], dimension);
+    x[i][dimension] = func(x[i], dimension);
     x[i][dimension + 1] = hMax;
     x[i][dimension + 2] = lambda;
   }
@@ -95,32 +136,32 @@ double normrnd (double mu, double sigma) {
   return distribution(generator);
 }
 
-void wwo (int size, int dimension) {
-  std::cout << "-> start" << std::endl;
+void wwo (int size, int dimension, double (*func)(double[], int), double lower, double upper) {
+  // std::cout << "-> start" << std::endl;
 
   // lower bounds
-  double *lowers = n_array(dimension, -35.0);
+  double *lowers = n_array(dimension, lower);
 
   // upper bounds
-  double *uppers = n_array(dimension, 35.0);
+  double *uppers = n_array(dimension, upper);
 
   // number of function evaluations
-  double nfes = dimension * 10000;
+  double nfes = dimension * 100000;
 
   double epsilon = 0.0000001;
 
   // parameter setting
   int hMax = 12;
-  double alpha = 1.0026;
+  double alpha = 1.001;
   double betaMax = 0.25;
   double betaMin = 0.001;
   double beta = betaMax;
   int kmax = std::min(12, dimension / 2);
 
   // initialization
-  std::cout << "-> init" << std::endl;
+  // std::cout << "-> init" << std::endl;
 
-  double **x = init(size, dimension, lowers, uppers);
+  double **x = init(size, dimension, lowers, uppers, func);
 
   int *indexs = minIndexMaxIndex(x, size, dimension);
   int minIndex = indexs[0];
@@ -135,7 +176,7 @@ void wwo (int size, int dimension) {
   int nfe = 0;
 
   // iterative improvement
-  std::cout << "-> run" << std::endl;
+  // std::cout << "-> run" << std::endl;
   double *u = n_array(dimension, 0.0);
 
   std::random_device rd;
@@ -143,7 +184,7 @@ void wwo (int size, int dimension) {
   std::uniform_real_distribution<double> unifrnd(-1, 1);
 
   while (nfe < nfes) {
-    std::cout << "-> nfe(" << nfe << ") " << std::endl;
+    // std::cout << "-> nfe(" << nfe << ") " << std::endl;
 
     // Propagation
     for (int i=0; i < size; i++) {
@@ -154,7 +195,7 @@ void wwo (int size, int dimension) {
         }
       }
 
-      double newValue = sphere_func(u, dimension);
+      double newValue = func(u, dimension);
       nfe += 1;
 
       if (newValue < x[i][dimension]) {
@@ -177,19 +218,18 @@ void wwo (int size, int dimension) {
               tempX[d] = lowers[d] + nrand() * (uppers[d] - lowers[d]);
             }
 
-            double newValueTemp = sphere_func(tempX, dimension);
+            double newValueTemp = func(tempX, dimension);
             nfe += 1;
 
             if (newValueTemp < newValue) {
               std::copy(tempX, tempX + dimension, x[i]);
-              x[i][dimension + 2] = x[i][dimension + 2] * newValueTemp / x[i][dimension];
+              x[i][dimension + 2] *= newValueTemp / x[i][dimension];
               x[i][dimension] = newValueTemp;
               newValue = newValueTemp;
 
               if (newValueTemp < optValue) {
                 optValue = newValueTemp;
                 std::copy(tempX, tempX + dimension, optVector);
-                std::cout << "-> optValue = " << optValue << std::endl;
               }
             }
           }
@@ -209,10 +249,10 @@ void wwo (int size, int dimension) {
 
           double oldValue = x[i][dimension];
           std::copy(u, u + dimension, x[i]);
-          x[i][dimension] = sphere_func(u, dimension);
+          x[i][dimension] = func(u, dimension);
           nfe += 1;
           x[i][dimension + 1] = hMax;
-          x[i][dimension + 2] = x[i][dimension + 2] * x[i][dimension + 1] / oldValue;
+          x[i][dimension + 2] *= x[i][dimension + 1] / oldValue;
         }
       }
     }
@@ -228,7 +268,7 @@ void wwo (int size, int dimension) {
     double worstValue = x[maxIndex][dimension];
     double den = (worstValue - optValue + epsilon);
     for (int i=0; i < size; i++) {
-      x[i][dimension + 2] = x[i][dimension + 2] * std::pow(alpha, - (worstValue - x[i][dimension] + epsilon) / den);
+      x[i][dimension + 2] *= std::pow(alpha, - (worstValue - x[i][dimension] + epsilon) / den);
     }
 
     beta = betaMax - (betaMax - betaMin) * nfe / nfes;
@@ -239,13 +279,30 @@ void wwo (int size, int dimension) {
   maxIndex = indexs[1];
 
   optValue = x[minIndex][dimension];
+  std::copy(x[minIndex], x[minIndex] + dimension, optVector);
 
+  std::cout << "-> optVector = [";
+  for (int i=0; i < dimension; i++) {
+    std::cout << optVector[i] << ((i == dimension-1) ? "" : ", ");
+  }
+
+  std::cout << "]" << std::endl;
   std::cout << "-> optValue = " << optValue << std::endl;
-
-  std::cout << "-> end" << std::endl;
+  std::cout << std::endl;
 }
 
 int main () {
-  wwo(5, 10);
-  return 1;
+  std::cout << "-> start: Sphere" << std::endl;
+  wwo(5, 10, sphere_func, -32, 32);
+
+  std::cout << "-> start: Ackley" << std::endl;
+  wwo(5, 10, ackley_func, -32, 32);
+
+  std::cout << "-> start: Griewank" << std::endl;
+  wwo(5, 10, griewank_func, -100, 100);
+
+  // std::cout << "-> start: Feature Selection" << std::endl;
+  // wwo(5, 10, sphere_func, 0, 1);
+
+  return 0;
 }
