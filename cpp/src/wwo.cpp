@@ -1,5 +1,9 @@
 #include "wwo.hpp"
 
+WWO::WWO () {
+  this->cec19 = Cec19();
+}
+
 double* WWO::n_array (int d, int x) {
   double *arr = new double[d];
   for (int i=0; i < d; i++) {
@@ -25,9 +29,11 @@ double WWO::nrand () {
   return ((double) std::rand() / __INT_MAX__);
 }
 
-double** WWO::init (int size, int dimension, double *lowers, double *uppers, double (*func)(double[], int)) {
+double** WWO::init (int size, int dimension, double *lowers, double *uppers, int funcId) {
   const int hMax = 12;
   double lambda = 0.5;
+
+  std::cout << "-> start function(" << funcId << ") optimization" << std::endl;
 
   double **x = n_matrix(size, dimension + 2, 0.0);
 
@@ -36,7 +42,7 @@ double** WWO::init (int size, int dimension, double *lowers, double *uppers, dou
       x[i][j] = lowers[j] + nrand() * (uppers[j] - lowers[j]);
     }
 
-    x[i][dimension] = func(x[i], dimension);
+    x[i][dimension] = this->cec19.eval_func(x[i], dimension, funcId);
     x[i][dimension + 1] = hMax;
     x[i][dimension + 2] = lambda;
   }
@@ -65,9 +71,10 @@ int* WWO::minIndexMaxIndex (double **x, int size, int dimension) {
   return new int[2]{minIndex, maxIndex};
 }
 
+std::random_device rd;
+std::mt19937 gen(rd());
+
 int* WWO::randperm (int n, int k) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
   std::uniform_real_distribution<> rand(1, k);
 
   int *result = new int[n];
@@ -78,14 +85,15 @@ int* WWO::randperm (int n, int k) {
   return result;
 }
 
+std::default_random_engine generator;
+
 double WWO::normrnd (double mu, double sigma) {
-  std::default_random_engine generator;
   std::normal_distribution<double> distribution(mu, sigma);
 
   return distribution(generator);
 }
 
-void WWO::exec (int size, int dimension, double (*func)(double[], int), double lower, double upper) {
+void WWO::exec (int size, int dimension, int funcId, double lower, double upper) {
   // std::cout << "-> start" << std::endl;
 
   // lower bounds
@@ -95,13 +103,13 @@ void WWO::exec (int size, int dimension, double (*func)(double[], int), double l
   double *uppers = n_array(dimension, upper);
 
   // number of function evaluations
-  double nfes = dimension * 100000;
+  int nfes = dimension * 100000;
 
   double epsilon = 0.0000001;
 
   // parameter setting
   int hMax = 12;
-  double alpha = 1.001;
+  double alpha = 1.0026;
   double betaMax = 0.25;
   double betaMin = 0.001;
   double beta = betaMax;
@@ -110,7 +118,7 @@ void WWO::exec (int size, int dimension, double (*func)(double[], int), double l
   // initialization
   // std::cout << "-> init" << std::endl;
 
-  double **x = init(size, dimension, lowers, uppers, func);
+  double **x = init(size, dimension, lowers, uppers, funcId);
 
   int *indexs = minIndexMaxIndex(x, size, dimension);
   int minIndex = indexs[0];
@@ -144,7 +152,7 @@ void WWO::exec (int size, int dimension, double (*func)(double[], int), double l
         }
       }
 
-      double newValue = func(u, dimension);
+      double newValue = this->cec19.eval_func(u, dimension, funcId);
       nfe += 1;
 
       if (newValue < x[i][dimension]) {
@@ -162,17 +170,20 @@ void WWO::exec (int size, int dimension, double (*func)(double[], int), double l
             double tempX[dimension];
             std::copy(u, u + dimension, tempX);
             int d = temp[l];
-            tempX[d] = x[i][d] * normrnd(0, 1) * beta * (uppers[d] - lowers[d]);
+            double* linearX = matrix2ContiguousArray(x, size, dimension);
+            tempX[d] = linearX[d] * normrnd(0, 1) * beta * (uppers[d] - lowers[d]);
             if (tempX[d] < lowers[d] || tempX[d] > uppers[d]) {
               tempX[d] = lowers[d] + nrand() * (uppers[d] - lowers[d]);
             }
 
-            double newValueTemp = func(tempX, dimension);
+            double newValueTemp = this->cec19.eval_func(tempX, dimension, funcId);
             nfe += 1;
 
             if (newValueTemp < newValue) {
-              std::copy(tempX, tempX + dimension, x[i]);
-              x[i][dimension + 2] *= newValueTemp / x[i][dimension];
+              linearX[d] = tempX[d];
+              double** newX = contiguousArray2Matrix(linearX, size, dimension);
+              std::copy(newX, newX + dimension, x);
+              x[i][dimension + 2] = x[i][dimension + 2] * newValueTemp / x[i][dimension];
               x[i][dimension] = newValueTemp;
               newValue = newValueTemp;
 
@@ -185,7 +196,7 @@ void WWO::exec (int size, int dimension, double (*func)(double[], int), double l
         }
       } else {
         // decrease wave height
-        x[i][dimension + 1] = x[i][dimension + 1] - 1;
+        x[i][dimension + 1] -= 1;
 
         // Refraction
         if (x[i][dimension + 1] == 0) {
@@ -198,7 +209,7 @@ void WWO::exec (int size, int dimension, double (*func)(double[], int), double l
 
           double oldValue = x[i][dimension];
           std::copy(u, u + dimension, x[i]);
-          x[i][dimension] = func(u, dimension);
+          x[i][dimension] = this->cec19.eval_func(u, dimension, funcId);
           nfe += 1;
           x[i][dimension + 1] = hMax;
           x[i][dimension + 2] *= x[i][dimension + 1] / oldValue;
@@ -238,4 +249,33 @@ void WWO::exec (int size, int dimension, double (*func)(double[], int), double l
   std::cout << "]" << std::endl;
   std::cout << "-> optValue = " << optValue << std::endl;
   std::cout << std::endl;
+}
+
+double* matrix2ContiguousArray (double** x, int size, int dimension) {
+  double* linear = new double[size * dimension];
+
+  int k = 0;
+  for (int j=0; j < dimension; j++) {
+    for (int i=0; i < size; i++) {
+      linear[k++] = x[i][j];
+    }
+  }
+
+  return linear;
+}
+
+double** contiguousArray2Matrix (double* x, int size, int dimension) {
+  double** matrix = new double*[size];
+  for (int i=0; i < size; i++) {
+    matrix[i] = new double[dimension];
+  }
+
+  int k = 0;
+  for (int j=0; j < dimension; j++) {
+    for (int i=0; i < size; i++) {
+      matrix[i][j] = x[k++];
+    }
+  }
+
+  return matrix;
 }

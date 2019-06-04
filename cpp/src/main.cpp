@@ -1,5 +1,6 @@
 #include <iostream>
 #include "wwo.hpp"
+#include "cec19_func.hpp"
 
 double sphere_func (double arr[], int length) {
   double sum = 0;
@@ -40,16 +41,21 @@ double griewank_func (double arr[], int length) {
 }
 
 int main () {
+  Cec19 cec19 = Cec19();
   WWO wwo = WWO();
 
-  std::cout << "-> start: Sphere" << std::endl;
-  wwo.exec(5, 10, sphere_func, -32, 32);
+  // std::cout << "-> start: Sphere" << std::endl;
+  // wwo.exec(5, 10, 1, -100, 100);
 
-  std::cout << "-> start: Ackley" << std::endl;
-  wwo.exec(5, 10, ackley_func, -32, 32);
+  // std::cout << "-> start: Ackley" << std::endl;
+  // wwo.exec(5, 10, 2, -100, 100);
 
-  std::cout << "-> start: Griewank" << std::endl;
-  wwo.exec(5, 10, griewank_func, -100, 100);
+  // std::cout << "-> start: Griewank" << std::endl;
+  wwo.exec(5, 10, 8, -100, 100);
+
+  // for (int i=1; i <= 10; i++) {
+  //   wwo.exec(5, 10, i, -100, 100);
+  // }
 
   return 0;
 }
